@@ -6,9 +6,6 @@ import Notification from '../components/Notification';
 
 const PIX_CONVERSION_RATE = 10; // 1 BRL = 10 Credits
 
-// This is a mock implementation. The real token should be kept on a secure backend.
-const MOCK_MERCADO_PAGO_ACCESS_TOKEN = 'APP_USR-2788550269284837-082514-7c59a29754c79ba60b1bd71d37d4647d-771121179';
-
 const PixPayment: React.FC = () => {
     const [amountBRL, setAmountBRL] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +29,13 @@ const PixPayment: React.FC = () => {
         const transactionAmount = parseFloat(amountBRL);
         if (isNaN(transactionAmount) || transactionAmount < 1) {
             setNotification({ message: 'Por favor, insira um valor válido de no mínimo R$ 1,00.', type: 'error' });
-             setTimeout(() => setNotification(null), 3000);
+            setTimeout(() => setNotification(null), 3000);
+            return;
+        }
+
+        if (!currentUser) {
+            setNotification({ message: 'Você precisa estar logado para realizar a compra.', type: 'error' });
+            setTimeout(() => setNotification(null), 3000);
             return;
         }
 
@@ -40,21 +43,41 @@ const PixPayment: React.FC = () => {
         setPaymentData(null);
         setNotification(null);
         
-        // --- MOCK API CALL ---
-        // In a real application, this fetch call would be to your own backend, which then securely communicates with Mercado Pago.
-        // Direct client-side calls like this are not secure and will fail due to CORS policy.
-        setTimeout(() => {
-            const mockPaymentId = Date.now();
-            const mockQrCodeBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEX///8AAABVwtN+AAABvElEQVR42uyYwY7DIAwEgfz/p5c+uIuRwGJ3tL0IqWbLTLx2RkQkIhL/E4m/q+yGgXkXh8+s93gH0DkEIkPj2MUEUkQkIhKJRGJBkFk3w9w/c+xWf6RCpH5dKkSiC9wQGZBk0p+2U1+sEJFIJBLJhxAZkEVK3h7e2iESiUQikXwMkQEZRLJgW6Tk7cWmESJRSH5IKkQGJBna9L4SiUQikUj+h0QGZBnpL1YgRKLkR6ZE5gPZpU5k3R8fRSIbkYlIJBKJpD8iCyKzbrY/JBKJRCL5kYiMD7K8vT0ikUgkEskPiYxIZP25LyKRSCQSyU8RGZBk/tA6kUgkEolEDiIzIJP/PpFIJBKJRA4is24sDyQSiUQikXyIyIAkEgmRSAxkVi8bEolEIpFIYiAyAyL5ffHUikQikUgkscjsdwZkIpFIJBLJH5YZkPxpjYhE8nNkhsC862aU2d4S+YEESCQSiUTyZ5EZkF7v703VA5hFJGkSiUQikfwns24sPyESiUQikUgkEpFIJBKJRCISkf8AE2EAZ3u/s7QAAAAASUVORK5CYII=';
-            const mockCopyPaste = '00020126360014br.gov.bcb.pix0114+55119999999995204000053039865802BR5913Test_User_Pix6009SAO PAULO62070503***6304E7C4';
-            
-             setPaymentData({
-                qrCodeBase64: mockQrCodeBase64,
-                copyPasteCode: mockCopyPaste,
-                paymentId: mockPaymentId,
+        try {
+            const response = await fetch('https://cpggicxvmgyljvoxlpnu.supabase.co/functions/v1/create-pix-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    amount: transactionAmount,
+                    credits: creditsToReceive,
+                    userId: currentUser.id,
+                }),
             });
+
+            if (!response.ok) {
+                throw new Error('Erro ao gerar código PIX');
+            }
+
+            const data = await response.json();
+            
+            if (data.success) {
+                setPaymentData({
+                    qrCodeBase64: data.qrCodeBase64,
+                    copyPasteCode: data.qrCode,
+                    paymentId: data.paymentId,
+                });
+            } else {
+                throw new Error('Falha ao gerar pagamento PIX');
+            }
+        } catch (error) {
+            console.error('Erro ao gerar PIX:', error);
+            setNotification({ message: 'Erro ao gerar código PIX. Tente novamente.', type: 'error' });
+            setTimeout(() => setNotification(null), 3000);
+        } finally {
             setIsLoading(false);
-        }, 1500);
+        }
     };
     
     const handleCheckStatus = async () => {

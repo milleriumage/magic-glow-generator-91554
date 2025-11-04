@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useCredits } from '../hooks/useCredits';
-import { UserRole } from '../types';
 
 interface ReactionBarProps {
     itemId: string;
-    userReactions: Record<UserRole, string>;
+    userReactions: Record<string, string>;
 }
 
 const EMOJIS = ['😍', '😂', '😘', '😲', '❤️', '🙏', '🙈', '😁'];
@@ -24,7 +23,7 @@ const ReactionBar: React.FC<ReactionBarProps> = ({ itemId, userReactions }) => {
     // FIX: Explicitly typed the initial value for the `reduce` accumulator as `Record<string, number>`.
     // This resolves an issue where TypeScript could not infer the accumulator's type,
     // causing an error when trying to index it and when sorting its values.
-    const reactionCounts = Object.values(userReactions).reduce((acc, emoji) => {
+    const reactionCounts: Record<string, number> = (Object.values(userReactions) as string[]).reduce((acc: Record<string, number>, emoji: string) => {
         if (emoji) { // Only count non-empty reaction strings
             acc[emoji] = (acc[emoji] || 0) + 1;
         }

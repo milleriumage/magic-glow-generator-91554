@@ -52,11 +52,11 @@ const OnlyFansCard: React.FC<OnlyFansCardProps> = ({ item, onCardClick }) => {
     // FIX: Explicitly typed the initial value for the `reduce` accumulator as `Record<string, number>`.
     // This resolves an issue where TypeScript could not infer the accumulator's type,
     // causing errors both when indexing it and when using its values in the subsequent `sort` function.
-    const reactionCounts = useMemo(() => {
+    const reactionCounts: Record<string, number> = useMemo(() => {
         if (!item.userReactions) {
             return {};
         }
-        return Object.values(item.userReactions).reduce((acc, emoji) => {
+        return (Object.values(item.userReactions) as string[]).reduce((acc: Record<string, number>, emoji: string) => {
             if (emoji) {
                 acc[emoji] = (acc[emoji] || 0) + 1;
             }
