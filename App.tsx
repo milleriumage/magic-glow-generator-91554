@@ -1,7 +1,7 @@
+
 import React, { useEffect } from 'react';
 import { CreditsProvider } from './context/CreditsContext';
 import { useCredits } from './hooks/useCredits';
-import { useAuth } from './hooks/useAuth';
 import { Screen } from './types';
 import Home from './screens/Home';
 import Store from './screens/Store';
@@ -93,8 +93,7 @@ const MainLayout: React.FC = () => {
 }
 
 const AppContent: React.FC = () => {
-  const { isLoggedIn, viewingCreatorId, theme, login, allUsers } = useCredits();
-  const { user, loading } = useAuth();
+  const { isLoggedIn, viewingCreatorId, theme } = useCredits();
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -105,27 +104,8 @@ const AppContent: React.FC = () => {
     }
   }, [theme]);
 
-  // Automatically log into mock system when Supabase user is authenticated
-  useEffect(() => {
-    if (user && !isLoggedIn) {
-      // Find creator user to log in as (for demo purposes)
-      const creatorUser = allUsers.find(u => u.role === 'creator');
-      if (creatorUser) {
-        login(creatorUser.id);
-      }
-    }
-  }, [user, isLoggedIn, login, allUsers]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-neutral-900">
-        <div className="text-white">Carregando...</div>
-      </div>
-    );
-  }
-
   // Allow guest view if a creator profile is being shared/viewed
-  if ((isLoggedIn && user) || viewingCreatorId) {
+  if (isLoggedIn || viewingCreatorId) {
     return <MainLayout />;
   }
 
