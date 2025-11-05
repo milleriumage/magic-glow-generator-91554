@@ -16,7 +16,8 @@ const SupportButton: React.FC = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      // Save message to database
+      const { error: dbError } = await supabase
         .from('support_messages')
         .insert({
           user_id: user.id,
@@ -24,7 +25,20 @@ const SupportButton: React.FC = () => {
           message: message.trim()
         });
 
-      if (error) throw error;
+      if (dbError) throw dbError;
+
+      // Send email notification
+      const { error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: user.email,
+          type: 'support',
+          message: message.trim()
+        }
+      });
+
+      if (emailError) {
+        console.error('Email error (non-critical):', emailError);
+      }
 
       setSuccess(true);
       setMessage('');

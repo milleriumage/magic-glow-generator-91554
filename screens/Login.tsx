@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useCredits } from '../hooks/useCredits';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Email inválido').trim();
 const passwordSchema = z.string().min(6, 'A senha deve ter no mínimo 6 caracteres');
 
 const Login: React.FC = () => {
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword, user, session } = useAuth();
+  const { login: contextLogin, allUsers } = useCredits();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,7 +16,32 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showForgotEmail, setShowForgotEmail] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Auto-login when authenticated
+  useEffect(() => {
+    if (user && session) {
+      // Find or create user in context
+      let contextUser = allUsers.find(u => u.id === user.id);
+      
+      if (!contextUser) {
+        // Create new user in context with Supabase user data
+        contextUser = {
+          id: user.id,
+          name: user.email?.split('@')[0] || 'Usuário',
+          avatarUrl: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,
+          email: user.email || '',
+          role: 'user' as const,
+          following: [],
+          followers: 0,
+          vitrineSlug: user.email?.split('@')[0] || user.id,
+        };
+      }
+      
+      contextLogin(contextUser.id);
+    }
+  }, [user, session, allUsers, contextLogin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +58,10 @@ const Login: React.FC = () => {
         setSuccessMessage('Link de recuperação enviado! Verifique seu email.');
         setShowForgotPassword(false);
         setEmail('');
+      } else if (showForgotEmail) {
+        // For forgot email, we'll show a message to contact support
+        setSuccessMessage('Para recuperar seu email, entre em contato com o suporte.');
+        setShowForgotEmail(false);
       } else if (activeTab === 'login') {
         passwordSchema.parse(password);
         const { error } = await signIn(email, password);
@@ -80,11 +111,11 @@ const Login: React.FC = () => {
                         FUN<span className="text-brand-primary">FANS</span>
                     </h1>
                     <p className="mt-2 text-neutral-400">
-                        {showForgotPassword ? 'Recuperar senha' : 'Your exclusive content hub.'}
+                        {showForgotPassword ? 'Recuperar senha' : showForgotEmail ? 'Recuperar email' : 'Your exclusive content hub.'}
                     </p>
                 </div>
                 
-                {!showForgotPassword && (
+                {!showForgotPassword && !showForgotEmail && (
                     <div className="flex border-b border-neutral-700">
                         <button 
                             onClick={() => {
@@ -122,37 +153,55 @@ const Login: React.FC = () => {
                 )}
 
                 <form className="space-y-4" onSubmit={handleSubmit}>
-                    <div>
-                        <label className="text-sm font-medium text-neutral-300" htmlFor="email">Email</label>
-                        <input 
-                            id="email" 
-                            type="email" 
-                            placeholder="voce@exemplo.com" 
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required 
-                            className="w-full mt-1 px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand-primary" 
-                        />
-                    </div>
+                    {!showForgotEmail && (
+                        <div>
+                            <label className="text-sm font-medium text-neutral-300" htmlFor="email">Email</label>
+                            <input 
+                                id="email" 
+                                type="email" 
+                                placeholder="voce@exemplo.com" 
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required 
+                                className="w-full mt-1 px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand-primary" 
+                            />
+                        </div>
+                    )}
                     
-                    {!showForgotPassword && (
+                    {!showForgotPassword && !showForgotEmail && (
                         <>
                             <div>
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-center mb-1">
                                     <label className="text-sm font-medium text-neutral-300" htmlFor="password">Senha</label>
                                     {activeTab === 'login' && (
-                                        <button 
-                                            type="button"
-                                            onClick={() => {
-                                                setShowForgotPassword(true);
-                                                setError('');
-                                                setSuccessMessage('');
-                                            }}
-                                            className="text-xs text-neutral-400 hover:text-brand-light flex items-center gap-1"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                            Esqueceu a senha?
-                                        </button>
+                                        <div className="flex gap-3">
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowForgotEmail(true);
+                                                    setShowForgotPassword(false);
+                                                    setError('');
+                                                    setSuccessMessage('');
+                                                }}
+                                                className="text-xs text-neutral-400 hover:text-brand-light flex items-center gap-1"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                                Esqueceu o email?
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowForgotPassword(true);
+                                                    setShowForgotEmail(false);
+                                                    setError('');
+                                                    setSuccessMessage('');
+                                                }}
+                                                className="text-xs text-neutral-400 hover:text-brand-light flex items-center gap-1"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                                Esqueceu a senha?
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                                 <input 
@@ -183,19 +232,22 @@ const Login: React.FC = () => {
                         </>
                     )}
 
-                    <button 
-                        type="submit" 
-                        disabled={loading}
-                        className="w-full py-3 font-bold text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {loading ? 'Carregando...' : showForgotPassword ? 'Enviar Link de Recuperação' : activeTab === 'login' ? 'Entrar' : 'Criar Conta'}
-                    </button>
+                    {!showForgotEmail && (
+                        <button 
+                            type="submit" 
+                            disabled={loading}
+                            className="w-full py-3 font-bold text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {loading ? 'Carregando...' : showForgotPassword ? 'Enviar Link de Recuperação' : activeTab === 'login' ? 'Entrar' : 'Criar Conta'}
+                        </button>
+                    )}
 
-                    {showForgotPassword && (
+                    {(showForgotPassword || showForgotEmail) && (
                         <button 
                             type="button"
                             onClick={() => {
                                 setShowForgotPassword(false);
+                                setShowForgotEmail(false);
                                 setError('');
                                 setSuccessMessage('');
                             }}
