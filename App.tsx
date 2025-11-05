@@ -25,6 +25,7 @@ import UserPlanManagement from './screens/UserPlanManagement';
 import ShowcaseManagement from './screens/ShowcaseManagement';
 import OutfitGenerator from './screens/OutfitGenerator';
 import ThemeGenerator from './screens/ThemeGenerator';
+import SupportButton from './components/SupportButton';
 
 const MainLayout: React.FC = () => {
   const { currentScreen, setCurrentScreen, currentUser, isTimedOut, timeoutInfo } = useCredits();
@@ -88,6 +89,7 @@ const MainLayout: React.FC = () => {
           {renderScreen()}
         </div>
       </main>
+      <SupportButton />
     </div>
   );
 }
