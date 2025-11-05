@@ -1,20 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { z } from 'zod';
-import { useCredits } from '../hooks/useCredits';
-import OnlyFansCard from '../components/OnlyFansCard';
-
-const DemoIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-1"><path d="M5.52 19c.64-2.2 1.84-3 3.22-3h6.52c1.38 0 2.58.8 3.22 3"/><circle cx="12" cy="10" r="3"/><circle cx="12" cy="12" r="10"/></svg>
-);
-
 
 const emailSchema = z.string().email('Email inválido').trim();
 const passwordSchema = z.string().min(6, 'A senha deve ter no mínimo 6 caracteres');
 
 const Login: React.FC = () => {
-  const { signIn, signUp, resetPassword, user } = useAuth();
-  const { login, allUsers, contentItems } = useCredits();
+  const { signIn, signUp, resetPassword } = useAuth();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,18 +16,6 @@ const Login: React.FC = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  const showcaseItems = contentItems.slice(0, 4);
-
-  useEffect(() => {
-    if (user) {
-      // Log in to the mock system with the first creator
-      const creatorUser = allUsers.find(u => u.role === 'creator');
-      if (creatorUser) {
-        login(creatorUser.id);
-      }
-    }
-  }, [user]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -43,7 +23,6 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      // Validate email
       emailSchema.parse(email);
       
       if (showForgotPassword) {
@@ -58,11 +37,12 @@ const Login: React.FC = () => {
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
             throw new Error('Email ou senha incorretos');
+          } else if (error.message.includes('Email not confirmed')) {
+            throw new Error('Por favor, confirme seu email antes de fazer login');
           }
           throw error;
         }
       } else {
-        // Register
         passwordSchema.parse(password);
         if (password !== confirmPassword) {
           throw new Error('As senhas não coincidem');
@@ -74,11 +54,15 @@ const Login: React.FC = () => {
           }
           throw error;
         }
-        setSuccessMessage('Cadastro realizado! Verifique seu email para confirmar.');
+        setSuccessMessage('Cadastro realizado! Verifique seu email para confirmar sua conta antes de fazer login.');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        setActiveTab('login');
       }
     } catch (err: any) {
       if (err instanceof z.ZodError) {
-        setError(err.errors[0].message);
+        setError(err.issues?.[0]?.message || 'Erro de validação');
       } else {
         setError(err.message || 'Ocorreu um erro. Tente novamente.');
       }
@@ -164,9 +148,9 @@ const Login: React.FC = () => {
                                                 setError('');
                                                 setSuccessMessage('');
                                             }}
-                                            className="text-xs text-neutral-400 hover:text-brand-light flex items-center"
+                                            className="text-xs text-neutral-400 hover:text-brand-light flex items-center gap-1"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-1"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                             Esqueceu a senha?
                                         </button>
                                     )}
@@ -222,17 +206,6 @@ const Login: React.FC = () => {
                     )}
                 </form>
             </div>
-        </div>
-        
-        <div className="mt-12 w-full max-w-5xl">
-            <h2 className="text-center text-xl font-bold text-white mb-4">Discover a World of Content</h2>
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pointer-events-none">
-                 {showcaseItems.map(item => (
-                    <div key={item.id} className="opacity-70">
-                        <OnlyFansCard item={{...item, blurLevel: 8}} onCardClick={() => {}} />
-                    </div>
-                 ))}
-             </div>
         </div>
     </div>
   );
